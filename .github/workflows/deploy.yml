@@ -1,0 +1,46 @@
+name: Deployment
+on:
+  push:
+    branches:
+      - main
+      - dev
+# Defining environment variables at workflow level, so they will be available inside all jobs defined in this workflow
+env:
+  MONGODB_DB_NAME: gha-demo
+  PORT: 3000
+jobs:
+  test:
+    env:
+      MONGODB_CLUSTER_ADDRESS: Cluster
+      MONGODB_USERNAME: User
+      MONGODB_PASSWORD: Password
+    environment: testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Run server
+        # $PORT is the environment variable defined above
+        run: npm start & npx wait-on http://127.0.0.1:$PORT
+      - name: Run tests
+        run: npm test
+      - name: Output information
+        # env is object provided by github actions to access all the environment variables
+        run: | 
+          echo "MONGODB USERNAME: ${{ env.MONGODB_USERNAME }}"
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output information
+        # MONGODB_USERNAME wont be available because we have defined it in other job but not on workflow level
+        run: |        
+          echo "MONGODB USERNAME: ${{ env.MONGODB_USERNAME }}"
+          echo "MONGODB DB NAME: ${{ env.MONGODB_DB_NAME }}"
